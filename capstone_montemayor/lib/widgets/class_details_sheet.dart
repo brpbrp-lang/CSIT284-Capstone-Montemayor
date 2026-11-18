@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/class_session.dart';
-import '../providers/auth_provider.dart';
 import '../providers/schedule_provider.dart';
+import '../theme/subject_colors.dart';
 import 'add_edit_class_sheet.dart';
 
 class ClassDetailsSheet extends StatelessWidget {
@@ -12,21 +12,18 @@ class ClassDetailsSheet extends StatelessWidget {
 
   static void show(BuildContext context, ClassSession session) {
     final scheduleProvider = ScheduleScope.of(context);
-    final authProvider = AuthScope.of(context);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (_) => AuthScope(
-        notifier: authProvider,
-        child: ScheduleScope(
-          notifier: scheduleProvider,
-          child: ClassDetailsSheet(session: session),
-        ),
+      builder: (_) => ScheduleScope(
+        notifier: scheduleProvider,
+        child: ClassDetailsSheet(session: session),
       ),
     );
   }
@@ -35,9 +32,10 @@ class ClassDetailsSheet extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Drop Overload Subject?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Remove Subject?'),
         content: Text(
-          'Are you sure you want to remove "${session.courseCode} - ${session.courseTitle}" from your schedule?',
+          'Are you sure you want to drop "${session.courseCode} - ${session.courseTitle}" from your schedule?',
         ),
         actions: [
           TextButton(
@@ -49,12 +47,12 @@ class ClassDetailsSheet extends StatelessWidget {
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () {
-              Navigator.pop(dialogCtx); // close dialog
-              Navigator.pop(context); // close bottom sheet
+              Navigator.pop(dialogCtx);
+              Navigator.pop(context);
               ScheduleScope.of(context).deleteClass(session.id);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Overload subject dropped.'),
+                  content: Text('Subject removed.'),
                   behavior: SnackBarBehavior.floating,
                 ),
               );
@@ -66,71 +64,13 @@ class ClassDetailsSheet extends StatelessWidget {
     );
   }
 
-  void _showTeacherNoticeDialog(BuildContext context) {
-    final roomCtrl = TextEditingController(text: session.room);
-    final noteCtrl = TextEditingController(text: session.statusNote ?? '');
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Text('Update ${session.courseCode} for BSIT 3-A'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: roomCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Room / Venue',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: noteCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Teacher Notice / Announcement',
-                hintText: 'e.g. Moved to Lab 201 today. Bring laptops.',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final updated = session.copyWith(
-                room: roomCtrl.text.trim(),
-                statusNote: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
-              );
-              ScheduleScope.of(context).updateClass(updated);
-              Navigator.pop(dialogCtx);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Section schedule announcement updated!'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            child: const Text('Save & Post Notice'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final auth = AuthScope.of(context);
-    final isTeacher = auth.isTeacher;
-    final isStudent = auth.isStudent;
+    final theme = Theme.of(context);
+    final subjectTheme = SubjectColors.getTheme(
+      session.courseCode,
+      isOverload: session.isOverload,
+    );
 
     final now = DateTime.now();
     final todayName = DateFormat('EEEE').format(now);
@@ -173,7 +113,7 @@ class ClassDetailsSheet extends StatelessWidget {
       statusText = untilStart > 60
           ? 'Starts in ${untilStart ~/ 60}h ${untilStart % 60}m'
           : 'Starts in $untilStart min';
-      statusColor = Theme.of(context).colorScheme.primary;
+      statusColor = subjectTheme.primary;
       statusIcon = Icons.schedule;
     }
 
@@ -181,194 +121,176 @@ class ClassDetailsSheet extends StatelessWidget {
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
-        top: 8,
+        top: 4,
         bottom: MediaQuery.of(context).padding.bottom + 24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Course code and status chip
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  session.courseCode,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
+          // Header Card with Subject Signature Gradient
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  subjectTheme.primary,
+                  subjectTheme.primary.withValues(alpha: 0.85),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(width: 8),
-              if (session.isOverload)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.amber.shade700),
-                  ),
-                  child: Text(
-                    'Overload',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.amber.shade900,
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Official Block (BSIT 3-A)',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-                  ),
-                ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(statusIcon, size: 14, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: statusColor,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        session.courseCode,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Course title
-          Text(
-            session.courseTitle,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 16),
-
-          // Teacher announcement box if present
-          if (session.statusNote != null && session.statusNote!.isNotEmpty) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.shade300),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.campaign, color: Colors.orange.shade900, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Notice from ${session.instructor}:',
+                    if (session.isOverload)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade300,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Added Subject',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange.shade900,
+                            color: Colors.black87,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          session.statusNote!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.orange.shade900,
-                          ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ],
-                    ),
+                        child: const Text(
+                          'BSIT 3-A Block',
+                          style: TextStyle(fontSize: 11, color: Colors.white),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  session.courseTitle,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -0.3,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-          ],
+          ),
+          const SizedBox(height: 16),
 
-          const Divider(),
-          const SizedBox(height: 12),
+          // Live Status Pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(statusIcon, size: 16, color: statusColor),
+                const SizedBox(width: 8),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  durationText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
 
-          // Detail Tiles
+          // Detail Tiles with aesthetic soft circles
           _DetailRow(
             icon: Icons.access_time_rounded,
-            title: 'Schedule & Duration',
-            subtitle: '${session.dayOfWeek} • ${session.formattedTime} ($durationText)',
+            title: 'Schedule & Timing',
+            subtitle: '${session.dayOfWeek} • ${session.formattedTime}',
+            accentColor: subjectTheme.primary,
           ),
           const SizedBox(height: 14),
           _DetailRow(
-            icon: Icons.room_outlined,
-            title: 'Room / Venue',
+            icon: Icons.location_on_outlined,
+            title: 'Classroom / Lab',
             subtitle: session.room,
+            accentColor: subjectTheme.primary,
           ),
           const SizedBox(height: 14),
           _DetailRow(
             icon: Icons.person_outline_rounded,
-            title: 'Instructor',
+            title: 'Professor / Instructor',
             subtitle: session.instructor,
+            accentColor: subjectTheme.primary,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
 
-          // Role-specific action buttons
-          if (isTeacher) ...[
-            // Teacher can post room changes or class notices
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _showTeacherNoticeDialog(context),
-                icon: const Icon(Icons.edit_note, size: 20),
-                label: const Text('Update Room or Post Notice'),
-              ),
-            ),
-          ] else if (isStudent && session.isOverload) ...[
-            // Student can edit or drop ONLY their overload subjects
+          // Action buttons: If overload unit -> allow edit/drop. If official -> lock notice.
+          if (session.isOverload) ...[
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                       AddEditClassSheet.show(context, session: session);
                     },
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Edit Overload'),
+                    label: const Text('Edit Subject'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Theme.of(context).colorScheme.error,
+                      foregroundColor: theme.colorScheme.error,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () => _confirmDelete(context),
                     icon: const Icon(Icons.delete_outline, size: 18),
@@ -378,18 +300,43 @@ class ClassDetailsSheet extends StatelessWidget {
               ],
             ),
           ] else ...[
-            // Official Section Class: student sees protected status
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              alignment: Alignment.center,
-              child: Text(
-                'Fixed Official Schedule for BSIT 3-A',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: Theme.of(context).colorScheme.outline,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.verified_outlined,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Official BSIT 3-A Curriculum Subject',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonal(
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
               ),
             ),
           ],
@@ -403,11 +350,13 @@ class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color accentColor;
 
   const _DetailRow({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.accentColor,
   });
 
   @override
@@ -416,9 +365,9 @@ class _DetailRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CircleAvatar(
-          radius: 18,
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          radius: 19,
+          backgroundColor: accentColor.withValues(alpha: 0.12),
+          child: Icon(icon, size: 20, color: accentColor),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -429,13 +378,14 @@ class _DetailRow extends StatelessWidget {
                 title,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
                     ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
               ),
             ],

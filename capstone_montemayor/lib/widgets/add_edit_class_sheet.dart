@@ -148,8 +148,8 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(isEditing
-            ? 'Overload subject updated!'
-            : 'Overload subject added to your timetable!'),
+            ? 'Subject updated!'
+            : 'Subject added to your timetable!'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -182,7 +182,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isEditing ? 'Edit Overload Subject' : 'Add Overload Subject',
+                    isEditing ? 'Edit Subject' : 'Add Subject',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -191,7 +191,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Enroll an extra/overload subject outside the standard BSIT 3-A block.',
+                'Enroll an extra/subject outside the standard BSIT 3-A block.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -336,7 +336,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
                   Expanded(
                     child: FilledButton(
                       onPressed: _save,
-                      child: Text(isEditing ? 'Save Changes' : 'Add Overload'),
+                      child: Text(isEditing ? 'Save Changes' : 'Add Subject'),
                     ),
                   ),
                 ],

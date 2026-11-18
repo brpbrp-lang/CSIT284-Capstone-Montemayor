@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'data/dummy_data.dart';
-import 'providers/auth_provider.dart';
 import 'providers/schedule_provider.dart';
-import 'screens/auth_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/weekly_screen.dart';
 import 'widgets/add_edit_class_sheet.dart';
@@ -12,60 +10,42 @@ void main() {
   runApp(const TimetableApp());
 }
 
-class TimetableApp extends StatefulWidget {
+class TimetableApp extends StatelessWidget {
   const TimetableApp({super.key});
 
   @override
-  State<TimetableApp> createState() => _TimetableAppState();
-}
-
-class _TimetableAppState extends State<TimetableApp> {
-  final AuthProvider _authProvider = AuthProvider();
-
-  @override
-  void dispose() {
-    _authProvider.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AuthScope(
-      notifier: _authProvider,
-      child: MaterialApp(
-        title: 'BSIT 3-A Portal',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorSchemeSeed: Colors.indigo,
+    return MaterialApp(
+      title: 'Timetable: BSIT 3-A Schedule',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF4F46E5), // Indigo Accent
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC), // Slate 50
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFF8FAFC),
+          elevation: 0,
+          scrolledUnderElevation: 0,
         ),
-        darkTheme: ThemeData(
-          useMaterial3: true,
-          colorSchemeSeed: Colors.indigo,
-          brightness: Brightness.dark,
-        ),
-        builder: (context, child) => PhoneFrame(child: child!),
-        home: const RootGate(),
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF4F46E5),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF0F172A), // Slate 900
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0F172A),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+        ),
+      ),
+      builder: (context, child) => PhoneFrame(child: child!),
+      home: const HomeShell(),
     );
   }
 }
 
-/// Gate that routes to AuthScreen or HomeShell based on authentication status
-class RootGate extends StatelessWidget {
-  const RootGate({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = AuthScope.of(context);
-    if (!auth.isAuthenticated) {
-      return const AuthScreen();
-    }
-    return const HomeShell();
-  }
-}
-
-/// Wraps the application in a phone-sized mockup frame when viewed on Web or Desktop
+/// Wraps the application in an iOS/Android phone mockup frame when viewed on Web or Desktop
 class PhoneFrame extends StatelessWidget {
   final Widget child;
 
@@ -77,7 +57,7 @@ class PhoneFrame extends StatelessWidget {
       builder: (context, constraints) {
         if (constraints.maxWidth > 500) {
           return Scaffold(
-            backgroundColor: const Color(0xFF1E1E24),
+            backgroundColor: const Color(0xFF0B0F19),
             body: Center(
               child: Container(
                 margin: const EdgeInsets.symmetric(vertical: 24),
@@ -86,13 +66,14 @@ class PhoneFrame extends StatelessWidget {
                   maxHeight: 880,
                 ),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(36),
-                  border: Border.all(color: const Color(0xFF2C2C35), width: 8),
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(38),
+                  border: Border.all(color: const Color(0xFF1E293B), width: 8),
                   boxShadow: const [
                     BoxShadow(
-                      color: Colors.black54,
-                      blurRadius: 28,
-                      offset: Offset(0, 12),
+                      color: Colors.black87,
+                      blurRadius: 32,
+                      offset: Offset(0, 14),
                     ),
                   ],
                 ),
@@ -125,35 +106,8 @@ class _HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
-  void _confirmLogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out of the portal?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              AuthScope.of(context).logout();
-            },
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final auth = AuthScope.of(context);
-    final user = auth.currentUser;
-    final isStudent = auth.isStudent;
-
     const screens = [
       TodayScreen(),
       WeeklyScreen(),
@@ -165,55 +119,58 @@ class _HomeShellState extends State<HomeShell> {
         builder: (context) {
           return Scaffold(
             appBar: AppBar(
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              title: Row(
                 children: [
-                  Text(
-                    '$kSectionName Timetable',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      kSectionName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                  Text(
-                    user != null
-                        ? '${user.isStudent ? "Student" : "Faculty"}: ${user.name}'
-                        : kSectionName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  const SizedBox(width: 10),
+                  const Flexible(
+                    child: Text(
+                      'Class Schedule',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
               centerTitle: false,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded),
-                  tooltip: 'Sign Out',
-                  onPressed: () => _confirmLogout(context),
-                ),
-              ],
             ),
             body: screens[_selectedIndex],
-            // Only students can add overload units to their section schedule
-            floatingActionButton: isStudent
-                ? FloatingActionButton.extended(
-                    onPressed: () => AddEditClassSheet.show(context),
-                    tooltip: 'Add Overload Subject',
-                    icon: const Icon(Icons.add_task),
-                    label: const Text('Add Overload'),
-                  )
-                : null,
+            floatingActionButton: FloatingActionButton.extended(
+              onPressed: () => AddEditClassSheet.show(context),
+              tooltip: 'Add Subject',
+              backgroundColor: const Color(0xFF4F46E5),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              icon: const Icon(Icons.add_task_rounded, size: 19),
+              label: const Text('Add Subject', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
             bottomNavigationBar: NavigationBar(
               selectedIndex: _selectedIndex,
               onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),
+              height: 64,
               destinations: const [
                 NavigationDestination(
                   icon: Icon(Icons.today_outlined),
-                  selectedIcon: Icon(Icons.today),
+                  selectedIcon: Icon(Icons.today_rounded),
                   label: 'Today',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.calendar_view_week_outlined),
-                  selectedIcon: Icon(Icons.calendar_view_week),
+                  selectedIcon: Icon(Icons.calendar_view_week_rounded),
                   label: 'Weekly',
                 ),
               ],
