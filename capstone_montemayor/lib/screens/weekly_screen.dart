@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/class_session.dart';
+import '../providers/auth_provider.dart';
 import '../providers/schedule_provider.dart';
 import '../widgets/class_details_sheet.dart';
 
@@ -21,6 +22,10 @@ class WeeklyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = AuthScope.of(context);
+    final isTeacher = auth.isTeacher;
+    final teacherName = auth.currentUser?.name ?? '';
+
     final todayName = DateFormat('EEEE').format(DateTime.now());
     final initialIndex = _days.indexOf(todayName);
 
@@ -76,6 +81,8 @@ class WeeklyScreen extends StatelessWidget {
                     final avatarCode = item.courseCode.length >= 2
                         ? item.courseCode.substring(0, 2)
                         : item.courseCode;
+                    final isMyClass = isTeacher &&
+                        item.instructor.toLowerCase().contains(teacherName.toLowerCase());
 
                     return Card.outlined(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -83,14 +90,58 @@ class WeeklyScreen extends StatelessWidget {
                       child: ListTile(
                         onTap: () => ClassDetailsSheet.show(context, item),
                         leading: CircleAvatar(
+                          backgroundColor: item.isOverload
+                              ? Colors.amber.shade200
+                              : (isMyClass
+                                  ? Theme.of(context).colorScheme.primaryContainer
+                                  : null),
                           child: Text(avatarCode),
                         ),
-                        title: Text(
-                          '${item.courseCode} - ${item.courseTitle}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item.courseCode} - ${item.courseTitle}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            if (item.isOverload)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade100,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Overload',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber.shade900,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        subtitle: Text(
-                          '${item.formattedTime}\n${item.room} • ${item.instructor}',
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              '${item.formattedTime}\n${item.room} • ${item.instructor}',
+                            ),
+                            if (item.statusNote != null && item.statusNote!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '📢 ${item.statusNote}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.orange.shade900,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         trailing: const Icon(Icons.chevron_right, size: 20),
                         isThreeLine: true,

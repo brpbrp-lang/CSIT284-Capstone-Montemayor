@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/class_session.dart';
+import '../providers/auth_provider.dart';
 import '../providers/schedule_provider.dart';
 import '../widgets/class_card.dart';
 
@@ -38,6 +39,10 @@ class _TodayScreenState extends State<TodayScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = AuthScope.of(context);
+    final isTeacher = auth.isTeacher;
+    final teacherName = auth.currentUser?.name ?? '';
+
     final now = DateTime.now();
     final todayName = DateFormat('EEEE').format(now);
     final dateSubtitle = DateFormat('MMMM d, y').format(now);
@@ -127,7 +132,7 @@ class _TodayScreenState extends State<TodayScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 4),
-                    const Text('Switch to the Weekly tab or tap "+" to add a class.'),
+                    const Text('Switch to Weekly tab to view other days.'),
                   ],
                 ),
               ),
@@ -137,11 +142,14 @@ class _TodayScreenState extends State<TodayScreen> {
               final isOngoing = currentMinutes >= session.startTotalMinutes &&
                   currentMinutes <= session.endTotalMinutes;
               final isDone = currentMinutes > session.endTotalMinutes;
+              final isMyClass = isTeacher &&
+                  session.instructor.toLowerCase().contains(teacherName.toLowerCase());
 
               return ClassCard(
                 session: session,
                 isOngoing: isOngoing,
                 isDone: isDone,
+                isMyClass: isMyClass,
               );
             }),
         ],

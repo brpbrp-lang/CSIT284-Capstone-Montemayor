@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/class_session.dart';
+import '../providers/auth_provider.dart';
 import '../providers/schedule_provider.dart';
 import 'add_edit_class_sheet.dart';
 
@@ -10,7 +11,9 @@ class ClassDetailsSheet extends StatelessWidget {
   const ClassDetailsSheet({super.key, required this.session});
 
   static void show(BuildContext context, ClassSession session) {
-    final provider = ScheduleScope.of(context);
+    final scheduleProvider = ScheduleScope.of(context);
+    final authProvider = AuthScope.of(context);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -18,9 +21,12 @@ class ClassDetailsSheet extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => ScheduleScope(
-        notifier: provider,
-        child: ClassDetailsSheet(session: session),
+      builder: (_) => AuthScope(
+        notifier: authProvider,
+        child: ScheduleScope(
+          notifier: scheduleProvider,
+          child: ClassDetailsSheet(session: session),
+        ),
       ),
     );
   }
@@ -29,9 +35,9 @@ class ClassDetailsSheet extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Delete Class?'),
+        title: const Text('Drop Overload Subject?'),
         content: Text(
-          'Are you sure you want to remove "${session.courseCode} - ${session.courseTitle}" from the schedule?',
+          'Are you sure you want to remove "${session.courseCode} - ${session.courseTitle}" from your schedule?',
         ),
         actions: [
           TextButton(
@@ -48,12 +54,72 @@ class ClassDetailsSheet extends StatelessWidget {
               ScheduleScope.of(context).deleteClass(session.id);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Class deleted.'),
+                  content: Text('Overload subject dropped.'),
                   behavior: SnackBarBehavior.floating,
                 ),
               );
             },
-            child: const Text('Delete'),
+            child: const Text('Drop Subject'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTeacherNoticeDialog(BuildContext context) {
+    final roomCtrl = TextEditingController(text: session.room);
+    final noteCtrl = TextEditingController(text: session.statusNote ?? '');
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Update ${session.courseCode} for BSIT 3-A'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: roomCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Room / Venue',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Teacher Notice / Announcement',
+                hintText: 'e.g. Moved to Lab 201 today. Bring laptops.',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final updated = session.copyWith(
+                room: roomCtrl.text.trim(),
+                statusNote: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
+              );
+              ScheduleScope.of(context).updateClass(updated);
+              Navigator.pop(dialogCtx);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Section schedule announcement updated!'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            child: const Text('Save & Post Notice'),
           ),
         ],
       ),
@@ -62,6 +128,10 @@ class ClassDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = AuthScope.of(context);
+    final isTeacher = auth.isTeacher;
+    final isStudent = auth.isStudent;
+
     final now = DateTime.now();
     final todayName = DateFormat('EEEE').format(now);
     final isToday = session.dayOfWeek.toLowerCase() == todayName.toLowerCase();
@@ -135,6 +205,36 @@ class ClassDetailsSheet extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              if (session.isOverload)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade700),
+                  ),
+                  child: Text(
+                    'Overload',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber.shade900,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Official Block (BSIT 3-A)',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -171,6 +271,51 @@ class ClassDetailsSheet extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: 16),
+
+          // Teacher announcement box if present
+          if (session.statusNote != null && session.statusNote!.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.campaign, color: Colors.orange.shade900, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Notice from ${session.instructor}:',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          session.statusNote!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.orange.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           const Divider(),
           const SizedBox(height: 12),
 
@@ -194,32 +339,60 @@ class ClassDetailsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Action buttons: Edit & Delete
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context); // close details sheet
-                    AddEditClassSheet.show(context, session: session);
-                  },
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit'),
-                ),
+          // Role-specific action buttons
+          if (isTeacher) ...[
+            // Teacher can post room changes or class notices
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _showTeacherNoticeDialog(context),
+                icon: const Icon(Icons.edit_note, size: 20),
+                label: const Text('Update Room or Post Notice'),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+          ] else if (isStudent && session.isOverload) ...[
+            // Student can edit or drop ONLY their overload subjects
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      AddEditClassSheet.show(context, session: session);
+                    },
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Edit Overload'),
                   ),
-                  onPressed: () => _confirmDelete(context),
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Delete'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                    onPressed: () => _confirmDelete(context),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Drop Subject'),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            // Official Section Class: student sees protected status
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              alignment: Alignment.center,
+              child: Text(
+                'Fixed Official Schedule for BSIT 3-A',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: Theme.of(context).colorScheme.outline,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );

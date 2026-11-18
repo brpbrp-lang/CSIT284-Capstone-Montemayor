@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'data/dummy_data.dart';
+import 'providers/auth_provider.dart';
 import 'providers/schedule_provider.dart';
+import 'screens/auth_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/weekly_screen.dart';
 import 'widgets/add_edit_class_sheet.dart';
@@ -10,26 +12,56 @@ void main() {
   runApp(const TimetableApp());
 }
 
-class TimetableApp extends StatelessWidget {
+class TimetableApp extends StatefulWidget {
   const TimetableApp({super.key});
 
   @override
+  State<TimetableApp> createState() => _TimetableAppState();
+}
+
+class _TimetableAppState extends State<TimetableApp> {
+  final AuthProvider _authProvider = AuthProvider();
+
+  @override
+  void dispose() {
+    _authProvider.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'CSIT284 Timetable',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.indigo,
+    return AuthScope(
+      notifier: _authProvider,
+      child: MaterialApp(
+        title: 'BSIT 3-A Portal',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorSchemeSeed: Colors.indigo,
+        ),
+        darkTheme: ThemeData(
+          useMaterial3: true,
+          colorSchemeSeed: Colors.indigo,
+          brightness: Brightness.dark,
+        ),
+        builder: (context, child) => PhoneFrame(child: child!),
+        home: const RootGate(),
       ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.indigo,
-        brightness: Brightness.dark,
-      ),
-      builder: (context, child) => PhoneFrame(child: child!),
-      home: const HomeShell(),
     );
+  }
+}
+
+/// Gate that routes to AuthScreen or HomeShell based on authentication status
+class RootGate extends StatelessWidget {
+  const RootGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthScope.of(context);
+    if (!auth.isAuthenticated) {
+      return const AuthScreen();
+    }
+    return const HomeShell();
   }
 }
 
@@ -43,7 +75,6 @@ class PhoneFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Only wrap in phone frame on wider screens (Web / Desktop)
         if (constraints.maxWidth > 500) {
           return Scaffold(
             backgroundColor: const Color(0xFF1E1E24),
@@ -94,8 +125,35 @@ class _HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
+  void _confirmLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out of the portal?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              AuthScope.of(context).logout();
+            },
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final auth = AuthScope.of(context);
+    final user = auth.currentUser;
+    final isStudent = auth.isStudent;
+
     const screens = [
       TodayScreen(),
       WeeklyScreen(),
@@ -107,15 +165,43 @@ class _HomeShellState extends State<HomeShell> {
         builder: (context) {
           return Scaffold(
             appBar: AppBar(
-              title: const Text('$kSectionName Schedule'),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$kSectionName Timetable',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  Text(
+                    user != null
+                        ? '${user.isStudent ? "Student" : "Faculty"}: ${user.name}'
+                        : kSectionName,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
               centerTitle: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  tooltip: 'Sign Out',
+                  onPressed: () => _confirmLogout(context),
+                ),
+              ],
             ),
             body: screens[_selectedIndex],
-            floatingActionButton: FloatingActionButton(
-              onPressed: () => AddEditClassSheet.show(context),
-              tooltip: 'Add Class',
-              child: const Icon(Icons.add),
-            ),
+            // Only students can add overload units to their section schedule
+            floatingActionButton: isStudent
+                ? FloatingActionButton.extended(
+                    onPressed: () => AddEditClassSheet.show(context),
+                    tooltip: 'Add Overload Subject',
+                    icon: const Icon(Icons.add_task),
+                    label: const Text('Add Overload'),
+                  )
+                : null,
             bottomNavigationBar: NavigationBar(
               selectedIndex: _selectedIndex,
               onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),

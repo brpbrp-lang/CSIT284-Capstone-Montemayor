@@ -124,7 +124,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
     final session = ClassSession(
       id: isEditing
           ? widget.existingSession!.id
-          : DateTime.now().millisecondsSinceEpoch.toString(),
+          : 'overload_${DateTime.now().millisecondsSinceEpoch}',
       courseCode: _codeController.text.trim().toUpperCase(),
       courseTitle: _titleController.text.trim(),
       dayOfWeek: _selectedDay,
@@ -134,6 +134,8 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
       endMinute: _endTime.minute,
       room: _roomController.text.trim(),
       instructor: _instructorController.text.trim(),
+      isOverload: true, // Marked as overloaded/custom subject
+      statusNote: widget.existingSession?.statusNote,
     );
 
     if (isEditing) {
@@ -145,7 +147,9 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isEditing ? 'Class updated!' : 'Class added to schedule!'),
+        content: Text(isEditing
+            ? 'Overload subject updated!'
+            : 'Overload subject added to your timetable!'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -170,10 +174,26 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.add_task_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isEditing ? 'Edit Overload Subject' : 'Add Overload Subject',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
               Text(
-                isEditing ? 'Edit Class' : 'Add New Class',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                'Enroll an extra/overload subject outside the standard BSIT 3-A block.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
               const SizedBox(height: 16),
@@ -187,7 +207,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
                       controller: _codeController,
                       decoration: const InputDecoration(
                         labelText: 'Course Code *',
-                        hintText: 'e.g. CSIT284',
+                        hintText: 'e.g. IT315',
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -222,7 +242,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
                 controller: _titleController,
                 decoration: const InputDecoration(
                   labelText: 'Course Title *',
-                  hintText: 'e.g. Mobile Application Development',
+                  hintText: 'e.g. Cloud Architecture (Elective)',
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -277,7 +297,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
                       controller: _roomController,
                       decoration: const InputDecoration(
                         labelText: 'Room / Venue *',
-                        hintText: 'e.g. Lab 302',
+                        hintText: 'e.g. Lab 204',
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -291,7 +311,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
                       controller: _instructorController,
                       decoration: const InputDecoration(
                         labelText: 'Instructor *',
-                        hintText: 'e.g. Prof. Santos',
+                        hintText: 'e.g. Prof. Mendoza',
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -316,7 +336,7 @@ class _AddEditClassSheetState extends State<AddEditClassSheet> {
                   Expanded(
                     child: FilledButton(
                       onPressed: _save,
-                      child: Text(isEditing ? 'Save Changes' : 'Add Class'),
+                      child: Text(isEditing ? 'Save Changes' : 'Add Overload'),
                     ),
                   ),
                 ],
