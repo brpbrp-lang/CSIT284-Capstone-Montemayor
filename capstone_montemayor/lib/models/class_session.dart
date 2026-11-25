@@ -73,7 +73,7 @@ class ClassSession {
     );
   }
 
-  /// Converts a Firestore document into a ClassSession object
+  /// Converts a Firebase Realtime Database entry into a ClassSession object
   factory ClassSession.fromMap(String id, Map<String, dynamic> map) {
     return ClassSession(
       id: id,
@@ -91,7 +91,7 @@ class ClassSession {
     );
   }
 
-  /// Converts a ClassSession object into a Map for Firestore upload
+  /// Converts a ClassSession object into a Map for Firebase Realtime Database upload
   Map<String, dynamic> toMap() => {
         'courseCode': courseCode,
         'courseTitle': courseTitle,
